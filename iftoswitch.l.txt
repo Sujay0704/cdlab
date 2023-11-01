@@ -1,0 +1,30 @@
+%option noyywrap
+%{
+#include<stdio.h>
+#include<string.h>
+char *stmt;
+char *val;
+%}
+%x s1
+%x s2
+%x s3
+%x s4
+%%
+"if("[a-z]+"=="[a-z0-9]+")"  {yytext[yyleng-4]='\0';printf("switch(%s){",yytext+3);BEGIN s1;}
+"else if("[a-z]+"=="[a-z0-9]+")"  {yytext[yyleng-1]='\0';val=yytext+11;BEGIN s3;}
+<s1>"{"[^}]*              {yytext[yyleng-1]='\0';stmt=strdup(yytext+1);}
+<s1>"}"                    {printf("case'1':%s\n\tbreak;",stmt);BEGIN s2;}
+<s2>"else if("[a-z]+"=="[a-z0-9]+")" {yytext[yyleng-1]='\0';val=yytext+11;BEGIN s3;}
+<s3>"{"[^}]*              {yytext[yyleng-1]='\0';stmt=strdup(yytext+1);}
+<s3>"}"                   {printf("case'%s':%s\n\tbreak;",val,stmt);BEGIN INITIAL;}
+
+"else"                     {printf("default:");BEGIN s4;}
+<s4>"{"[^}]*              {yytext[yyleng-1]='\0';stmt=strdup(yytext+1);}
+<s4>"}"                    {printf("%s\n}",stmt);BEGIN INITIAL;}
+%%
+
+int main(){
+yyin=fopen("iftoswitch.c","r");
+yylex();
+return 0;
+}
