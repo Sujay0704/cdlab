@@ -73,6 +73,105 @@ case '/':return 2;
 }
 
 
+PREFIX.L
+
+
+%option noyywrap
+%{
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#define MAX_EXPR_LENGTH 100
+
+int stack[MAX_EXPR_LENGTH];
+int top = -1;
+
+void push(int val) {
+    if (top == MAX_EXPR_LENGTH - 1) {
+        printf("Stack overflow\n");
+        exit(1);
+    }
+    stack[++top] = val;
+}
+
+int pop() {
+    if (top == -1) {
+        printf("Stack underflow\n");
+        exit(1);
+    }
+    return stack[top--];
+}
+
+int precedence(char op) {
+    if (op == '+' || op == '-')
+        return 1;
+    else if (op == '*' || op == '/')
+        return 2;
+    return 0;
+}
+
+void convertToPrefix(char *expr) {
+    int len = strlen(expr);
+    char prefix[MAX_EXPR_LENGTH];
+    int prefixIndex = 0;
+
+    for (int i = len - 1; i >= 0; i--) {
+        if (expr[i] == ')')
+            push(i);
+        else if (expr[i] == '(') {
+            while (top != -1 && expr[stack[top]] != ')') {
+                prefix[prefixIndex++] = expr[pop()];
+            }
+            pop(); // Pop the corresponding opening parenthesis
+        } else if (expr[i] == '+' || expr[i] == '-' || expr[i] == '*' || expr[i] == '/') {
+            while (top != -1 && precedence(expr[stack[top]]) >= precedence(expr[i])) {
+                prefix[prefixIndex++] = expr[pop()];
+            }
+            push(i);
+        } else {
+            prefix[prefixIndex++] = expr[i];
+        }
+    }
+
+    while (top != -1) {
+        prefix[prefixIndex++] = expr[pop()];
+    }
+
+    prefix[prefixIndex] = '\0';
+
+    // Reverse the prefix expression to get the correct order
+    for (int i = 0; i < prefixIndex / 2; i++) {
+        char temp = prefix[i];
+        prefix[i] = prefix[prefixIndex - i - 1];
+        prefix[prefixIndex - i - 1] = temp;
+    }
+
+    printf("Prefix expression: %s\n", prefix);
+}
+
+%}
+
+%%
+[ \t\n]     ; // Skip whitespace
+
+.           { ECHO; } // Echo other characters
+
+%%
+
+int main() {
+    char expr[MAX_EXPR_LENGTH];
+    printf("Enter an infix expression: ");
+    fgets(expr, sizeof(expr), stdin);
+    expr[strcspn(expr, "\n")] = '\0'; // Remove trailing newline character
+
+    convertToPrefix(expr);
+
+    return 0;
+}
+
+
+
 
 
 SYMBOL TABLE.L
