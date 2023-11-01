@@ -1,0 +1,367 @@
+POSTFIX.L
+
+%option noyywrap
+%{
+        char stack[100];
+        int tos=0;
+        void push(char);
+        void pop();
+    char top();
+    int priority(char c);
+%}
+%%
+[a-zA-Z]? {printf("%c",yytext[0]);}
+[+\-\*\/\(\)] { char op=yytext[0];
+                 if(tos==0||op=='(')
+                   push(op);
+                 else if(op==')'){
+                   while(top()!='('){
+                    printf("%c",top());
+                    pop();
+                    }
+                    pop();
+                 }
+
+                 else if(priority(op)>=priority(top())){
+                  push(op);
+                  }
+                  else if(priority(op)<=priority(top())){
+                    while(priority(op)<=priority(top())){
+                       printf("%c",top());
+                       pop();
+                       }
+                       push(op);
+                  }
+              }
+ [\n]  {
+          int i;
+             for(i=tos-1;i>=0;i--)
+                 if(stack[i]!='('&&stack[i]!=')'){
+                    printf("%c",stack[i]);
+
+                    }
+          tos=0;
+
+
+       }
+
+%%
+int main(){
+   yylex();
+}
+
+void pop(){
+ tos--;
+}
+ char top(){
+   return stack[tos-1];
+}
+
+void push(char c){
+   stack[tos]=c;
+   tos++;
+}
+int priority(char c){
+switch(c){
+case '(':return 0;
+case ')':return 0;
+case '+':return 1;
+case '-':return 1;
+case '*':return 2;
+case '/':return 2;
+}
+}
+
+
+
+
+SYMBOL TABLE.L
+
+
+%option noyywrap
+
+%{
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+int line = 1; // Initialize line number
+
+typedef struct node {
+    char id[20];
+    char type[20];
+    int lineno;
+    struct node* next;
+} node;
+
+node head;
+
+void addnode(node*);
+void display();
+%}
+
+alpha [a-zA-z]
+numeric [0-9]
+
+%x intvar
+%x floatvar
+%x charvar
+%x structvar
+%%
+
+[^r]"int"   {BEGIN intvar;}
+"char"  {BEGIN charvar;}
+"float" {BEGIN floatvar;}
+
+"struct" {BEGIN structvar;}
+
+<intvar>{alpha}({alpha}|{numeric}|"_")* {
+
+    node* new_node = (node*)malloc(sizeof(node));
+
+    strcpy(new_node->id, yytext);
+                                                                                     strcpy(new_node->type, "int");
+
+
+        if(strcmp("int",yytext)==0){
+
+    strcpy(new_node->type,"error");
+
+    strcpy(new_node->id,"error");
+
+}
+    new_node->lineno = line;
+
+    new_node->next = NULL;
+
+    addnode(new_node);
+
+}
+
+
+
+<intvar>";"|")" {BEGIN INITIAL;}
+
+<structvar>{alpha}({alpha}|{numeric}|"_")* {
+
+    node* new_node = (node*)malloc(sizeof(node));
+
+    strcpy(new_node->id, yytext);
+
+    strcpy(new_node->type, "struct");
+
+    new_node->lineno = line;
+
+    new_node->next = NULL;
+
+    addnode(new_node);
+
+}
+
+ <structvar>"{"|";" {BEGIN INITIAL;}
+
+
+
+<charvar>{alpha}({alpha}|{numeric}|"_")* {
+
+    node* new_node = (node*)malloc(sizeof(node));
+
+    strcpy(new_node->id, yytext);
+
+    strcpy(new_node->type, "char");
+
+    new_node->lineno = line;
+
+    new_node->next = NULL;
+
+    addnode(new_node);
+
+}
+
+
+
+<charvar>";"|")" {BEGIN INITIAL;}
+
+
+
+<floatvar>{alpha}({alpha}|{numeric}|"_")* {
+
+    node* new_node = (node*)malloc(sizeof(node));
+
+    strcpy(new_node->id, yytext);
+
+    strcpy(new_node->type, "float");
+
+    new_node->lineno = line;
+
+    new_node->next = NULL;
+
+    addnode(new_node);
+
+}
+
+
+
+<floatvar>";"|")" {BEGIN INITIAL;}
+
+
+
+<intvar>{alpha}({alpha}|{numeric}|"_")*[" "]?"(" {
+
+    node* new_node = (node*)malloc(sizeof(node));
+
+    yytext[yyleng-1]='\0';
+
+    strcpy(new_node->id, yytext);
+
+    strcpy(new_node->type, "funct-int");
+
+    new_node->lineno = line;
+
+    new_node->next = NULL;
+
+    addnode(new_node);
+
+}
+
+
+
+<charvar>{alpha}({alpha}|{numeric}|"_")*[" "]?"(" {
+
+    node* new_node = (node*)malloc(sizeof(node));
+
+    yytext[yyleng-1]='\0';
+
+    strcpy(new_node->id, yytext);
+
+    strcpy(new_node->type, "funct-char");
+
+    new_node->lineno = line;
+
+    new_node->next = NULL;
+
+    addnode(new_node);
+
+}
+
+
+
+<floatvar>{alpha}({alpha}|{numeric}|"_")*[" "]?"(" {
+
+    node* new_node = (node*)malloc(sizeof(node));
+
+    yytext[yyleng-1]='\0';
+
+    strcpy(new_node->id, yytext);
+
+    strcpy(new_node->type, "funct-float");
+
+    new_node->lineno = line;
+
+    new_node->next = NULL;
+
+    addnode(new_node);
+
+}
+
+
+
+"void "(" ")*{alpha}({alpha}|{numeric}|"_")* {
+
+    node* new_node = (node*)malloc(sizeof(node));
+
+    strcpy(new_node->id, yytext);
+
+    strcpy(new_node->type, "funct-void");
+
+    new_node->lineno = line;
+
+    new_node->next = NULL;
+
+    addnode(new_node);
+
+}
+
+
+
+[\n] { line++; }
+
+. { ; }
+
+
+
+<intvar>. { ; }
+
+<charvar>. { ; }
+
+<floatvar>. { ; }
+
+
+
+%%
+
+
+
+void addnode(node* new_node) {
+
+    node* p = &head;
+
+    while (p->next != NULL) p = p->next;
+
+    p->next = new_node;
+
+}
+
+
+
+void display() {
+
+    node* p = head.next;
+
+    printf("ID\tType\t\tLineno\n");
+
+    while (p != NULL) {
+
+        printf("%s\t%s\t\t%d\n", p->id, p->type, p->lineno);
+
+        p = p->next;
+
+    }
+
+}
+
+
+
+int main() {
+
+    head.next = NULL;
+
+    yyin = fopen("decl.txt", "r");
+
+    yylex();
+
+    display();
+
+
+
+    // Free allocated memory for nodes
+
+    node* current = head.next;
+
+    while (current != NULL) {
+
+        node* temp = current;
+
+        current = current->next;
+
+        free(temp);
+
+    }
+
+
+
+    return 0;
+
+}
+
+
